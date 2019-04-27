@@ -1,11 +1,42 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	"../models"
 	"github.com/gin-gonic/gin"
 )
+
+func (idb *InDB) Login(c *gin.Context) {
+	var (
+		User   models.User
+		result gin.H
+	)
+	username := c.PostForm("Username")
+	password := c.PostForm("Password")
+	err := idb.DB.Where("username = ?", username).First(&User).Error
+	if err != nil {
+		result = gin.H{
+			"result": "Username tidak terdaftar",
+			"status": "fail",
+		}
+		c.JSON(400, result)
+	} else {
+		if User.Password == password {
+			c.JSON(http.StatusOK, gin.H{
+				"result": User.Username,
+				"status": "success",
+			})
+		} else {
+			c.JSON(400, gin.H{
+				"result": "Password Salah",
+				"status": "fail",
+			})
+		}
+	}
+
+}
 
 // to get one data with {id}
 func (idb *InDB) GetUser(c *gin.Context) {
@@ -13,8 +44,8 @@ func (idb *InDB) GetUser(c *gin.Context) {
 		User   models.User
 		result gin.H
 	)
-	id := c.Param("id")
-	err := idb.DB.Where("id = ?", id).First(&User).Error
+	id := c.Param("Username")
+	err := idb.DB.Where("username = ?", id).First(&User).Error
 	if err != nil {
 		result = gin.H{
 			"result": err.Error(),
@@ -59,15 +90,25 @@ func (idb *InDB) CreateUser(c *gin.Context) {
 		User   models.User
 		result gin.H
 	)
+	fmt.Println(c.PostForm("Username"))
 	Username := c.PostForm("Username")
 	Password := c.PostForm("Password")
-	User.Username = Username
-	User.Password = Password
-	idb.DB.Create(&User)
-	result = gin.H{
-		"result": User,
+
+	err := idb.DB.Where("username = ?", Username).First(&User).Error
+	if err != nil {
+		User.Username = Username
+		User.Password = Password
+		idb.DB.Create(&User)
+		result = gin.H{
+			"result": User,
+		}
+		c.JSON(http.StatusOK, result)
+	} else {
+		c.JSON(400, gin.H{
+			"result": "Username sudah terdaftar",
+			"status": "fail",
+		})
 	}
-	c.JSON(http.StatusOK, result)
 }
 
 // update data with {id} as query
